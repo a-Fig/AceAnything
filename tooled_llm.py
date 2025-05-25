@@ -23,7 +23,7 @@ class Toolwrapper:
 # gemini-2.5-flash-preview-04-17
 # gemini-2.0-flash
 # gemini-2.0-flash-lite
-GEMINI_API_KEY = "AIzaSyCcdqFzRMp1YeFdLKjPUh5qAC2xQPgAiks"
+GEMINI_API_KEY = ""
 
 class ToolLLM:
     def __init__(self, directions: str = "", tool_objects: List[Toolwrapper] = None, model: str = "gemini-2.0-flash"):
