@@ -1,6 +1,6 @@
 # AceAnything: Your AI-Powered Study Partner 📚🤖
 
-AceAnything is an intelligent quiz platform that helps you master any subject through personalized, AI-powered learning. Whether you're preparing for a driving test, professional certification, or academic exam, AceAnything adapts to your learning style and provides instant, detailed feedback.
+AceAnything is an intelligent quiz platform that helps you master any subject through personalized, AI-powered learning. Whether you're preparing for a driving test, professional certification, or academic exam, AceAnything builds a custom quiz tailored to you.
 
 ## 🏁 Experience AceAnything for yourself!
 
