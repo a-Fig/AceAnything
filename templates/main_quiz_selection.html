@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
+    <title>AceAnything - Select Quiz</title>
+    <link rel="icon" href="{{ url_for('static', path='/favicon.svg') }}" type="image/svg+xml">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', path='/css/styles.css') }}?v={{ range(1, 1000) | random }}">
+    <style>
+        /* Additional styles specific to this page can go here or in styles.css */
+        .quiz-card-item {
+            background-color: var(--bg-card);
+            border-radius: 18px; /* Slightly less rounded than quiz interface card */
+            box-shadow: 0 8px 24px rgba(0,0,0,0.2), 0 0 0 0.5px rgba(255,255,255,0.07);
+            padding: 1.75rem;
+            transition: transform 0.25s ease-out, box-shadow 0.25s ease-out;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between; /* Pushes button to bottom */
+            min-height: 220px; /* Ensure cards have some height */
+        }
+        .quiz-card-item:hover {
+            transform: translateY(-6px) scale(1.02);
+            box-shadow: 0 12px 30px rgba(0,0,0,0.25), 0 0 0 0.5px rgba(255,255,255,0.1);
+        }
+        .upload-card {
+            border: 2px dashed var(--border-color);
+            background-color: transparent; /* Different background for upload */
+            color: var(--text-secondary);
+        }
+        .upload-card:hover {
+            border-color: var(--accent-blue);
+            color: var(--accent-blue);
+        }
+        .plus-icon {
+            font-size: 3rem;
+            line-height: 1;
+            margin-bottom: 0.75rem;
+        }
+        .btn {
+            padding: 0.75rem 1.5rem; border-radius: 10px; font-weight: 600;
+            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+            border: none; cursor: pointer; font-size: 0.9rem;
+            letter-spacing: 0.01em; text-transform: none;
+            display: inline-flex; align-items: center; justify-content: center;
+            margin-top: auto; /* Pushes button to bottom of flex container */
+        }
+        .btn-primary { background-color: var(--accent-blue); color: white; }
+        .btn-primary:hover { background-color: var(--accent-blue-hover); transform: scale(1.03); }
+        .btn-primary:disabled { background-color: var(--bg-element); color: var(--text-secondary); cursor: not-allowed; }
+
+        #uploadStatus { margin-top: 1rem; font-weight: 500; }
+        .status-success { color: var(--accent-green); }
+        .status-error { color: var(--accent-red); }
+        .spinner-small {
+            width: 16px; height: 16px;
+            border: 2px solid var(--bg-element);
+            border-radius: 50%;
+            border-top-color: var(--accent-blue);
+            animation: spin 0.7s linear infinite;
+            display: inline-block; /* To align with text */
+            margin-right: 0.5rem; /* Space from text */
+            vertical-align: middle;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+    </style>
+</head>
+<body class="bg-bg-main text-text-primary font-sans antialiased">
+    <div class="container mx-auto px-4 py-8 md:py-16">
+        <header class="text-center mb-12 md:mb-16">
+            <h1 class="text-4xl md:text-5xl font-bold tracking-tight">Welcome to AceAnything</h1>
+            <p class="text-lg md:text-xl text-text-secondary mt-3">Select a quiz to start learning or upload your own material.</p>
+        </header>
+
+        <div id="quizSelectionGrid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 md:gap-8">
+            {% for quiz_id, quiz_info in quizzes.items() %}
+            <div class="quiz-card-item" id="quiz-card-{{ quiz_info.quiz_name_id }}">
+                <div class="quiz-title-container flex justify-between items-start mb-1">
+                    <h2 class="text-xl font-semibold quiz-title-text mr-2">{{ quiz_info.title }}</h2>
+                    {% if quiz_info.is_custom %}
+                    <div class="custom-quiz-actions flex items-center space-x-2 shrink-0">
+                        <button class="edit-quiz-btn p-1.5 text-text-tertiary hover:text-accent-blue focus:outline-none transition-colors duration-150" title="Rename Quiz"
+                                data-quiz-name="{{ quiz_info.quiz_name_id }}"
+                                data-current-title="{{ quiz_info.title }}">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+                            </svg>
+                        </button>
+                        <button class="delete-quiz-btn p-1.5 text-text-tertiary hover:text-red-500 focus:outline-none transition-colors duration-150"
+                                title="Delete Quiz"
+                                data-quiz-name="{{ quiz_info.quiz_name_id }}"
+                                data-quiz-title="{{ quiz_info.title }}">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                            </svg>
+                        </button>
+                    </div>
+                    {% endif %}
+                </div>
+                {% if quiz_info.is_custom %}
+                <div class="rename-quiz-controls hidden mt-1 mb-3">
+                    <input type="text" class="w-full p-2.5 bg-gray-200 dark:bg-gray-700 border border-border-color rounded-lg text-sm text-gray-900 dark:text-gray-100 placeholder-gray-500 dark:placeholder-gray-400 focus:ring-1 focus:ring-accent-blue focus:border-accent-blue outline-none quiz-rename-input" value="{{ quiz_info.title }}">
+                    <div class="flex justify-end space-x-2 mt-2.5">
+                        <button class="btn btn-cancel-rename text-xs py-1.5 px-3 rounded-md hover:bg-bg-element-hover">Cancel</button>
+                        <button class="btn btn-save-rename text-xs py-1.5 px-3 bg-accent-green hover:bg-accent-green-hover text-white rounded-md">Save</button>
+                    </div>
+                </div>
+                {% endif %}
+                <div>
+                    <p class="text-sm text-text-secondary mb-4">{{ quiz_info.description }}</p>
+                    {% if quiz_info.question_count is defined and quiz_info.question_count > 0 %}
+                    <p class="text-xs text-text-tertiary mb-3 font-medium">{{ quiz_info.question_count }} Questions</p>
+                    {% endif %}
+                    {% if quiz_info.is_custom %}
+                    <p class="text-xs text-accent-blue mb-3">Custom Quiz</p>
+                    {% endif %}
+                </div>
+                <button class="btn btn-primary w-full select-quiz-btn" data-quiz-name="{{ quiz_info.quiz_name_id }}" data-quiz-title="{{ quiz_info.title }}">
+                    Start Quiz
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 ml-2" viewBox="0 0 20 20" fill="currentColor">
+                        <path fill-rule="evenodd" d="M10.293 3.293a1 1 0 011.414 0l6 6a1 1 0 010 1.414l-6 6a1 1 0 01-1.414-1.414L14.586 11H3a1 1 0 110-2h11.586l-4.293-4.293a1 1 0 010-1.414z" clip-rule="evenodd" />
+                    </svg>
+                </button>
+                {% if quiz_info.is_custom %}
+                <!-- Delete button moved to icons near title -->
+                {% endif %}
+            </div>
+            {% endfor %}
+
+            <div class="quiz-card-item upload-card flex flex-col items-center justify-center text-center cursor-pointer" id="uploadCardTrigger">
+                <div class="plus-icon">+</div>
+                <h2 class="text-xl font-semibold mb-2">Create Your Own Quiz</h2>
+                <p class="text-sm">Upload a PDF document to generate a personalized quiz and tutor.</p>
+                <input type="file" id="pdfUpload" accept=".pdf" class="hidden">
+            </div>
+        </div>
+
+        <div id="uploadModal" class="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center p-4 hidden z-50 backdrop-blur-sm">
+            <div class="bg-bg-card p-6 md:p-8 rounded-xl shadow-2xl w-full max-w-md transform transition-all">
+                <div class="flex justify-between items-center mb-6">
+                    <h2 class="text-2xl font-semibold">Upload PDF for Custom Quiz</h2>
+                    <button id="closeUploadModalBtn" class="text-text-secondary hover:text-text-primary text-2xl">&times;</button>
+                </div>
+                <form id="uploadForm">
+                    <div class="mb-4">
+                        <label for="quizTitleInput" class="block text-sm font-medium text-text-secondary mb-1">Quiz Title (Optional)</label>
+                        <input type="text" id="quizTitleInput" name="quiz_title" placeholder="e.g., History Chapter 5" class="w-full p-3 bg-bg-element border border-border-color rounded-lg focus:ring-2 focus:ring-accent-blue focus:border-accent-blue outline-none transition-colors">
+                    </div>
+                    <div class="mb-4">
+                        <label for="quizSizePrefInput" class="block text-sm font-medium text-text-secondary mb-1">Preferred Quiz Size (Optional)</label>
+                        <select id="quizSizePrefInput" name="quiz_size_preference" class="w-full p-3 bg-bg-element border border-border-color rounded-lg focus:ring-2 focus:ring-accent-blue focus:border-accent-blue outline-none transition-colors">
+                            <option value="">Auto (based on document length)</option>
+                            <option value="small">Small (~10 questions)</option>
+                            <option value="medium">Medium (~20 questions)</option>
+                            <option value="large">Large (~30 questions)</option>
+                        </select>
+                    </div>
+                    <div class="mb-6">
+                        <label for="pdfFileInputModal" class="block text-sm font-medium text-text-secondary mb-1">PDF Document</label>
+                        <input type="file" id="pdfFileInputModal" name="file" accept=".pdf" required class="w-full text-sm text-text-secondary file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-accent-blue file:text-white hover:file:bg-accent-blue-hover file:cursor-pointer cursor-pointer p-2 border border-border-color rounded-lg bg-bg-element">
+                        <p class="text-xs text-text-secondary mt-1">Max file size: 10MB. Only PDF files are accepted.</p>
+                    </div>
+                    <button type="submit" id="submitUploadBtn" class="btn btn-primary w-full">
+                        Generate Quiz
+                    </button>
+                </form>
+                <div id="uploadStatus" class="text-center mt-4"></div>
+            </div>
+        </div>
+         <div id="globalLoadingOverlay" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center hidden z-[1000] backdrop-blur-sm">
+            <div class="bg-bg-card p-8 rounded-lg shadow-xl text-center">
+                <div class="spinner-large mx-auto mb-4" style="width: 48px; height: 48px; border-width: 4px; border-top-color: var(--accent-blue); animation: spin 1s linear infinite;"></div>
+                <p class="text-text-primary text-lg font-medium">Processing, please wait...</p>
+                <p id="loadingMessageDetail" class="text-text-secondary text-sm mt-1"></p>
+            </div>
+        </div>
+
+
+    </div>
+    <footer class="text-center py-8 text-sm text-text-secondary">
+        &copy; <span id="currentYear"></span> AceAnything. Your AI Study Partner.
+    </footer>
+    <script src="{{ url_for('static', path='/js/main_page_logic.js') }}?v={{ range(1, 1000) | random }}"></script>
+</body>
+</html>

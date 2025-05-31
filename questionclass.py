@@ -9,10 +9,11 @@ print("questionclass.py")
 
 
 class Question:
-    def __init__(self, question: str, explanation: str, weight=1.0):
+    def __init__(self, question: str, explanation: str, weight=1.0, quiz_size: int = 10):
         self.question: str = question
         self.explanation: str = explanation
         self.weight: float = weight
+        self.quiz_size: int = quiz_size
 
     def build_parts(self):
         pass
@@ -26,11 +27,12 @@ class Question:
     def grade_answer(self, answer: str) -> Tuple[float, str]:
         pass
 
-    def increase_weight(self):
-        self.weight += 10
+    def increase_weight(self, quiz_size: int = 10):
+        self.weight += quiz_size *  0.1
+        self.weight = min(self.weight, quiz_size * 0.50)
 
     def reduce_weight(self):
-        self.weight *= 3/5
+        self.weight *= 2/5
 
 
 class ShortAnswer(Question):
@@ -42,44 +44,45 @@ class ShortAnswer(Question):
     def __init__(self, question: str, correct_answer: List[str], explanation: str, grading_instructions: str, weight=1.0):
         super().__init__(question, explanation, weight)
         self.correct_answer: List[str] = correct_answer
+        self.grading_instructions: str = grading_instructions
 
         formatstr = "{ 'grade': 0.85, 'reason': 'The answer missed X, incorrectly stated Y, and failed to explain Z. It did mention A correctly, but lacked clarity in B.' }"
         self.graderprompt: str = f"""
-You're an AI Grader. Your job is to critically assess a user’s answer based strictly on the fixed question, explanation, and sample answer provided. 
-Focus only on accuracy and completeness compared to the given standard.
-Use the embedded question, explanation, and correct sample answer to find all factual errors, missing points, or signs of misunderstanding in the user’s response.
-You should remove points for,
-Factual Inaccuracy: The answer contains incorrect information or statements that contradict the provided explanation or sample answer.
-Key Omissions: Essential points, components, steps, or details clearly present in the sample answer or required by the explanation are missing.
-Misunderstanding of Concepts: The answer demonstrates incorrect use of terminology, misapplication of principles, or a superficial understanding contrary to the provided explanation.
-Lack of Specificity/Vagueness: The answer is too general, ambiguous, or lacks the precision required by the question or demonstrated in the sample answer.
-Irrelevant Information: The answer includes details or statements that are off-topic or do not directly address the specific question asked.
+            You're AI Grader. Your job is to critically assess a user’s answer based strictly on the fixed question, explanation, and sample answer provided. 
+            Focus only on accuracy and completeness compared to the given standard.
+            Use the embedded question, explanation, and correct sample answer to find all factual errors, missing points, or signs of misunderstanding in the user’s response.
+            You should remove points for,
+            Factual Inaccuracy: The answer contains incorrect information or statements that contradict the provided explanation or sample answer.
+            Key Omissions: Essential points, components, steps, or details clearly present in the sample answer or required by the explanation are missing.
+            Misunderstanding of Concepts: The answer demonstrates incorrect use of terminology, misapplication of principles, or a superficial understanding contrary to the provided explanation.
+            Lack of Specificity/Vagueness: The answer is too general, ambiguous, or lacks the precision required by the question or demonstrated in the sample answer.
+            Irrelevant Information: The answer includes details or statements that are off-topic or do not directly address the specific question asked.
 
-Return your evaluation as a single JSON object with two keys:
+            Return your evaluation as a single JSON object with two keys:
 
-* `grade`: a float between 0.0 and 1.0 based on how closely the user’s answer matches the meaning of the sample.
-* `reason`: a detailed explanation of what was wrong, missing, or unclear in the user’s answer. Be direct and specific. Focus on critical feedback that helps the user improve. Avoid encouragement or vague praise.
+            * `grade`: a float between 0.0 and 1.0 based on how closely the user’s answer matches the meaning of the sample.
+            * `reason`: a detailed explanation of what was wrong, missing, or unclear in the user’s answer. Be direct and specific. Focus on critical feedback that helps the user improve. Avoid encouragement or vague praise.
 
-Question: "{question}"
+            Question: "{question}"
 
-Question Explanation: {explanation}
+            Question Explanation: {explanation}
 
-Sample Answer(s): {', '.join(f'"{item}"' for item in correct_answer)}
+            Sample Answer(s): {', '.join(f'"{item}"' for item in correct_answer)}
 
-Grading Instructions: {grading_instructions}
+            Grading Instructions: {grading_instructions}
 
-You are a very strict grader, look for any reason to doc points. 
-You should NEVER give a perfect score.
-Grading Criteria:
-* Accuracy: Is the answer factually correct?
-* Completeness: Are all key points covered?
-* Understanding: Does it show a clear grasp of the concepts?
-* Clarity: Is it specific and unambiguous?
+            Do not be scared to fail the user.
+            Users who show a lack of understanding should be given a low grade so they can learn from their mistakes.
+            Grading Criteria:
+            * Accuracy: Is the answer factually correct?
+            * Completeness: Are all key points covered?
+            * Understanding: Does it show a clear grasp of the concepts?
+            * Clarity: Is it specific and unambiguous?
 
-Output Format:
-Only return a valid JSON object like this:
-{formatstr}
-"""
+            Output Format:
+            Only return a valid JSON object like this:
+            {formatstr}
+            """.strip()
         self.grader: chatapi.FlashChat = None
 
     def setup_grader(self):
@@ -152,17 +155,23 @@ class MultipleChoice(Question):
         if len(choice) != 1:
             print(f"invalid input to grade_answer '{choice}'")
             super().increase_weight()
-            return 0, ""
+            return 0.0, ""
 
         index = ord(choice.upper()) - ord('A')
 
         if index < 0 or index >= len(self.last_option_set):
             super().increase_weight()
-            return 0, ""
+            return 0.0, ""
 
-        answer = self.last_option_set[ord(choice.upper()) - ord('A')]
-        super().reduce_weight() if answer else super().increase_weight()
-        return (answer in self.correct_answer), ""
+        answer = self.last_option_set[index]
+        is_correct = answer in self.correct_answer
+        
+        if is_correct:
+            super().reduce_weight()
+            return 1.0, ""
+        else:
+            super().increase_weight()
+            return 0.0, ""
 
 
 class TrueFalseQuestion(MultipleChoice):

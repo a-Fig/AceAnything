@@ -4,6 +4,7 @@ import json
 
 import chatapi
 
+print("tooled_llm.py")
 
 class Toolwrapper:
     """
@@ -23,36 +24,44 @@ class Toolwrapper:
 # gemini-2.5-flash-preview-04-17
 # gemini-2.0-flash
 # gemini-2.0-flash-lite
-GEMINI_API_KEY = ""
+
 
 class ToolLLM:
-    def __init__(self, directions: str = "", tool_objects: List[Toolwrapper] = None, model: str = "gemini-2.0-flash"):
+    def __init__(self,
+                 directions: str = "",
+                 tool_objects: List[Toolwrapper] = None,
+                 model: str = "gemini-2.0-flash",
+                 action_prompt: str = ""):
+
         self.response_instructions = """
-OUTPUT FORMAT REQUIREMENTS:
-Your response MUST strictly follow this two-part structure:
-PART 1: THINKING PROCESS
-- Begin your response with your step-by-step reasoning and plan.
-- Detail the inputs received, your interpretation, and the sequence of actions you intend to take and why.
-- Review the rules and guidelines associated with your actions and how you should follow them.
-- Include what actions you won't be taking, or why you will be waiting before calling a certain action.
-- End your thoughts with a clear plan of what you will be doing and why
-- Think for as long as you need to
-- Do not write any JSON in your thoughts
-- This section MUST come before any JSON code.
-PART 2: JSON ACTION LIST
-- Following your thinking process, provide the JSON list containing the actions to be executed.
-- Arguments should ALWAYS be passed as strings
-- You may perform multiple actions in the same json list
-- If no actions are required, end with an empty list: `[]`
-- This JSON block MUST be the absolute final part of your response. No text should follow it.
-- Json format: 
-[
-    { "action": "{action name}", "args": ["{argument1}", "{argument2}", "{argument3}"] },
-    { "action": "{action name}", "args": ["{argument1}"] },
-    { "action": "{action name}", "args": [] },
-    { "action": "{action name}", "args": ["{argument1}", "{argument2}", "{argument3}", "{argument4}", "{argument5}"] }
-]
-"""
+            OUTPUT FORMAT REQUIREMENTS:
+            Your response MUST strictly follow this two-part structure:
+            PART 1: THINKING PROCESS
+            - You should NEVER have any brackets '[', ']' in your thoughts.
+            - Begin your response with your step-by-step reasoning and plan.
+            - Detail the inputs received, your interpretation, and the sequence of actions you intend to take and why.
+            - Review the rules and guidelines associated with your actions and how you should follow them.
+            - Include what actions you won't be taking, or why you will be waiting before calling a certain action.
+            - End your thoughts with a clear plan of what you will be doing and why
+            - Think for as long as you need to
+            - Do not write any JSON in your thoughts
+            - You should NEVER have any brackets '[', ']' in your thoughts.
+            - You should NEVER have any brackets '[', ']' in your thoughts.
+            - This section MUST come before any JSON code.
+            PART 2: JSON ACTION LIST
+            - Following your thinking process, provide the JSON list containing the actions to be executed.
+            - Arguments should ALWAYS be passed as strings
+            - You may perform multiple actions in the same json list
+            - If no actions are required, end with an empty list: `[]`
+            - This JSON block MUST be the absolute final part of your response. No text should follow it.
+            - Json format: 
+            [
+                { "action": "{action name}", "args": ["{argument1}", "{argument2}", "{argument3}"] },
+                { "action": "{action name}", "args": ["{argument1}"] },
+                { "action": "{action name}", "args": [] },
+                { "action": "{action name}", "args": ["{argument1}", "{argument2}", "{argument3}", "{argument4}", "{argument5}"] }
+            ]
+        """
 
         self.directions: str = directions
         self.tool_instructions: str = ""
@@ -66,27 +75,54 @@ PART 2: JSON ACTION LIST
                 self.tool_instructions = f"{self.tool_instructions}{tool.manual}\n"
 
         initial_prompt = f"""
-Primary directions:
-{directions}
+            Primary directions:
+            {directions}
 
-{self.response_instructions}
+            {self.response_instructions}
 
-Available tools:
-{self.tool_instructions}
+            Available tools:
+            {self.tool_instructions}
 
-Instructions are complete. Acknowledge your instructions and wait patiently.
+            You may not preform any actions on this turn. 
+            Instructions are complete. Acknowledge your instructions and wait patiently.
         """
 
         self.llm = chatapi.FlashChat(initial_prompt, model=model)
 
-    def seperate_llm_response(self, text: str) -> (str, str):
-        prematch = re.search(r'^(.*?)\[', text, re.DOTALL)
-        thought = prematch.group(1) if prematch else ''
+        if action_prompt:
+            self.prompt(action_prompt)
 
-        postmatch = re.search(r'\[.*\]', text, re.DOTALL)
-        actions = postmatch.group(0) if postmatch else "[]"
+    def seperate_llm_response(self, text: str) -> (str, list):
+        try:
+            prematch = re.search(r'^(.*?)\[', text, re.DOTALL)
+            thought = prematch.group(1) if prematch else ''
 
-        return thought, actions
+            postmatch = re.search(r'\[[\s\S]*\]', text)
+            actions = postmatch.group(0) if postmatch else "[]"
+            data = json.loads(actions)
+
+            if not (isinstance(data, list) and all(isinstance(item, dict) for item in data)):
+                #print("data is not the correct type, printing data: ")
+                #print(data)
+
+                if isinstance(data, list):
+                    inner_types = [type(item).__name__ for item in data]
+                    raise TypeError(f"Expected a list[dict], but got: list containing {inner_types}")
+                else:
+                    raise TypeError(f"Expected a list[dict] but got {type(data).__name__}")
+
+            return thought, data
+        except Exception as e:
+            print(f"LLM message failed to parse. Asking them to send it again.")
+            print(f"\n'{text}'")
+            self.prompt(f"""
+                Your last message failed to be parsed.  
+                Error -> '{e}'
+                Send it again according to the response instructions so that it can be parsed properly.
+                You should not have any brackets '[', ']' in your thoughts.
+                {self.response_instructions}
+            """)
+            return "", []
 
     def preform_action(self, action_name: str, arguments: List[str]) -> str:
         tool: Toolwrapper = self.tools.get(action_name)
@@ -114,36 +150,63 @@ Instructions are complete. Acknowledge your instructions and wait patiently.
         return f"{messages}\n"
 
     def prompt(self, user_prompt: str):
-        llm_response: str = self.llm.prompt(f"{self.load_unimportant_messages()}{user_prompt}")
+        print(f"ToolLLM.prompt called with user_prompt: {user_prompt}")
+
+        # Load unimportant messages and combine with user prompt
+        unimportant_messages = self.load_unimportant_messages()
+        full_prompt = f"{unimportant_messages}{user_prompt}"
+        print(f"Full prompt to LLM: {full_prompt}")
+
+        # Get response from LLM
+        llm_response: str = self.llm.prompt(full_prompt)
+        print(f"LLM response received, length: {len(llm_response)}")
+
         thoughts: str
-        cleansed_response: str
+        data: list = None
 
-        thoughts, cleansed_response = self.seperate_llm_response(llm_response)
+        # Parse the response
+        print("Parsing LLM response")
+        thoughts, data = self.seperate_llm_response(llm_response)
+        print(f"Parsed thoughts (first 100 chars): {thoughts[:100] if thoughts else 'None'}")
+        print(f"Parsed data: {data}")
 
-        while cleansed_response.replace("\n", "").replace(" ", "") != "[]":
-            data = json.loads(cleansed_response)
+        # Process actions
+        while len(data):
+            print(f"Processing {len(data)} actions")
 
             if isinstance(data, dict):
+                print("Converting dict to list")
                 data = [data]
 
             prompt: str = ""
-            for block in data:
+            for block_index, block in enumerate(data):
+                print(f"Processing action block {block_index}: {block}")
                 action = block.get("action")
 
                 if action is None:
+                    print(f"No action in block {block_index}, skipping")
                     continue
 
                 arguments: List[str] = block.get("args", [])
+                print(f"Action: {action}, Arguments: {arguments}")
 
                 result = self.preform_action(action, arguments)
+                print(f"Action result: {result}")
+
                 if result != "":
                     prompt = f"{prompt}{result}\n"
+                    print(f"Updated prompt: {prompt}")
 
             if prompt == "":
+                print("No prompt generated, breaking loop")
                 break
 
+            print(f"Sending follow-up prompt to LLM: {prompt}")
             llm_response = self.llm.prompt(f"{self.load_unimportant_messages()}{prompt}")
-            thoughts, cleansed_response = self.seperate_llm_response(llm_response)
+            print(f"Follow-up LLM response received, length: {len(llm_response)}")
 
+            thoughts, data = self.seperate_llm_response(llm_response)
+            print(f"Follow-up parsed thoughts (first 100 chars): {thoughts[:100] if thoughts else 'None'}")
+            print(f"Follow-up parsed data: {data}")
 
-
+        print("ToolLLM.prompt completed")

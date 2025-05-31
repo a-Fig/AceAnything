@@ -4,7 +4,8 @@ from dotenv import load_dotenv
 import os
 
 from google.genai.types import Content
-
+from google.genai import errors as genai_errors   # <-- important
+import time
 print("chatapi.py")
 
 
@@ -18,13 +19,48 @@ client = genai.Client(api_key=GEMINI_API_KEY)
 
 
 class FlashChat:
-    def __init__(self, directions: str = "", model: str = "gemini-2.0-flash"):
+    def __init__(self, directions: str = "You are a helpful assistant.", model: str = "gemini-2.0-flash"):
         self.chat = client.chats.create(model=model)
-        if directions != "":
-            self.chat.send_message(directions)
+        self.directions = directions
+        self.setup: bool = False
 
     def prompt(self, message: str = "") -> str:
-        return self.chat.send_message(message).text
+        if not self.setup:
+            self.chat.send_message(self.directions)
+            self.setup = True
+        return self.safe_prompt(message)
+
+    def safe_prompt(self, message: str, max_tries: int = 5, base_backoff: float = 10.0):
+        """
+        Send a prompt to Gemini, retrying on 503 UNAVAILABLE.
+
+        chat       – your google.genai Chat object
+        message    – user / system message string
+        max_tries  – total attempts before giving up
+        base_backoff – seconds; real wait = base_backoff * 2**attempt
+        """
+        print(f"FlashChat.safe_prompt called with message: {message[:100]}... (length: {len(message)})")
+
+        for attempt in range(max_tries):
+            print(f"Attempt {attempt + 1}/{max_tries} to send message to Gemini")
+            try:
+                print("Calling Gemini API...")
+                response = self.chat.send_message(message)
+                print(f"Gemini API response received, text length: {len(response.text)}")
+                print(f"Response text (first 100 chars): {response.text[:100]}...")
+                return response.text
+            except Exception as e:
+                print(f"Exception caught in safe_prompt: {type(e).__name__}: {str(e)}")
+                wait = base_backoff * (2 ** attempt)  # exponential backoff
+                if attempt == max_tries - 1:
+                    print(f"Max retries reached, raising exception: {e}")
+                    raise
+
+                print(f"Gemini error. retry {attempt + 1}/{max_tries} in {wait}s…")
+                time.sleep(wait)
+
+        print("All attempts failed, returning empty string")
+        return ""
 
     def chat_history(self, user_label: str = "user> ", model_label: str = "model> ", user_end_label: str = "", model_end_label: str = "") -> str:
         history: str = ""
@@ -42,9 +78,6 @@ class FlashChat:
         return self.chat.get_history()
 
 
-shorten_names = FlashChat("bot1")
-say_thankyou = FlashChat("bot2")
-
 
 def open_chat_with(fchat: FlashChat):
     user_message = input("user: ")
@@ -52,8 +85,11 @@ def open_chat_with(fchat: FlashChat):
         response = fchat.prompt(user_message)
         print(f"flash: {response}")
         user_message = input("user: ")
-    return fchat.chat_history(user_label="Tyler:\n   ", model_label="Gemini:\n   ")
+    return fchat.chat_history(user_label="User:\n   ", model_label="Gemini:\n   ")
 
 
 if __name__ == '__main__':
-   print(open_chat_with(say_thankyou))
+    shorten_names = FlashChat("bot1")
+    say_thankyou = FlashChat("bot2")
+    print(open_chat_with(shorten_names))
+    print(open_chat_with(say_thankyou))

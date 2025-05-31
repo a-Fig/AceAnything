@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ quiz_title }} - AceAnything</title> <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="icon" href="{{ url_for('static', path='/favicon.svg') }}" type="image/svg+xml">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', path='/css/styles.css') }}">
+    <style>
+        /* :root variables are in styles.css */
+        html { scroll-behavior: smooth; }
+        body { /* Basic body styles from styles.css */
+            display: flex; flex-direction: column; align-items: center;
+            justify-content: flex-start; min-height: 100vh; padding: 1.5rem;
+            overflow-x: hidden;
+        }
+        .quiz-viewport { width: 100%; max-width: 680px; margin-top: 2vh; margin-bottom: auto;}
+        .quiz-card {
+            padding: clamp(1.75rem, 5vw, 2.75rem);
+            transition: background-color 0.3s ease-out, transform 0.3s ease-out, box-shadow 0.3s ease-out;
+            border: 3px solid transparent; /* Base border */
+        }
+        .quiz-card.correct {
+            border-color: var(--accent-green, #10B981);
+            box-shadow: 0 0 15px var(--accent-green-light, #D1F2EB);
+        }
+        .quiz-card.incorrect {
+            border-color: var(--accent-red, #EF4444);
+            box-shadow: 0 0 15px var(--accent-red-light, #FEE2E2);
+            animation: shake 0.5s cubic-bezier(.36,.07,.19,.97) both;
+        }
+
+        @keyframes shake {
+            10%, 90% { transform: translate3d(-1px, 0, 0); }
+            20%, 80% { transform: translate3d(2px, 0, 0); }
+            30%, 50%, 70% { transform: translate3d(-3px, 0, 0); }
+            40%, 60% { transform: translate3d(3px, 0, 0); }
+        }
+
+        /* Custom styles for quiz interaction feedback */
+        .mcq-option.selected, .tf-option.selected {
+            background-color: var(--accent-blue-light, #D1E9FF); /* A light blue for selection */
+            border-color: var(--accent-blue, #007BFF);
+            color: var(--accent-blue-dark, #0056b3); /* Darker text for selected */
+        }
+
+        /* Removed .answer-feedback-container and its variants as requested */
+
+        .chat-bubble {
+            padding: 0.65rem 1rem; /* Slightly more padding */
+            border-radius: 1rem; /* More rounded */
+            margin-bottom: 0.65rem;
+            max-width: 85%;
+            word-wrap: break-word;
+            display: flex; /* For aligning text and button */
+            align-items: center; /* Vertically align items */
+        }
+        .chat-bubble.user {
+            background-color: var(--accent-blue, #007BFF);
+            color: white;
+            margin-left: auto;
+            border-bottom-right-radius: 0.35rem; 
+        }
+        .chat-bubble.ai {
+            background-color: var(--bg-element, #F3F4F6); /* Lighter gray for AI */
+            color: var(--text-primary, #1F2937);
+            margin-right: auto;
+            border-bottom-left-radius: 0.35rem;
+        }
+        .chat-bubble .message-text {
+            flex-grow: 1; /* Text takes available space */
+        }
+
+        .tts-button-chat {
+            background: transparent;
+            border: none;
+            color: var(--text-secondary, #6B7280);
+            cursor: pointer;
+            padding: 0.35rem;
+            margin-left: 0.75rem; 
+            line-height: 1; /* Ensure icon aligns well */
+        }
+        .tts-button-chat:hover {
+            color: var(--accent-blue, #007BFF);
+        }
+        .tts-button-chat svg {
+            width: 1.1rem; /* Slightly larger icon */
+            height: 1.1rem;
+        }
+
+        /* Other specific styles from user's index.html that are not in styles.css can be added here */
+        /* Or preferably, consolidate them into styles.css */
+        .app-footer { /* Ensure footer is styled consistently */
+            width: 100%; text-align: center; padding: 1.5rem 0 1rem 0;
+            font-size: 0.75rem; color: var(--text-secondary); margin-top: auto;
+        }
+    </style>
+</head>
+<body class="bg-bg-main text-text-primary font-sans antialiased">
+    <a href="/" class="fixed top-4 left-4 btn btn-secondary btn-sm z-50">
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 mr-1.5 inline-block" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M9.707 16.707a1 1 0 01-1.414 0l-6-6a1 1 0 010-1.414l6-6a1 1 0 011.414 1.414L5.414 9H17a1 1 0 110 2H5.414l4.293 4.293a1 1 0 010 1.414z" clip-rule="evenodd" /></svg>
+        Main Menu
+    </a>
+
+    <div class="quiz-viewport pt-12">
+        <div class="quiz-card" id="quizCard">
+            <header class="app-header mb-6">
+                <div class="flex justify-between items-center">
+                    <h1 class="app-title" id="quizInterfaceTitle">{{ quiz_title }}</h1>
+                </div>
+                <p class="app-subtitle mt-2">Focus and give it your best shot!</p>
+                <p id="scoreDisplay" class="mt-3 text-base">
+                    Question: <span id="questionProgressDisplay">1 / {{ total_question_count if total_question_count > 0 else '-' }}</span> 
+                    (<span id="scoreTextDisplay">Score: 0</span>)
+                </p>
+            </header>
+
+            <div id="loadingMessage" class="text-center py-10 text-base">
+                <div class="spinner mx-auto mb-3" style="width: 32px; height: 32px; border-width: 3px;"></div>
+                Loading Next Question...
+            </div>
+
+            <div id="quizArea" class="hidden">
+                <div id="questionContainer">
+                    <p id="questionText" class="text-lg md:text-xl font-semibold leading-relaxed mb-6"></p>
+                </div>
+
+                <div id="answerOptionsMcq" class="mcq-option-group mb-6"></div>
+                <div id="answerOptionsTf" class="tf-options-container mb-6 flex justify-center"></div>
+                <div id="shortAnswerContainer" class="hidden mb-6">
+                    <textarea id="shortAnswerInput" rows="4" placeholder="Type your answer here..." class="w-full p-3 bg-bg-element border border-border-color rounded-lg focus:ring-2 focus:ring-accent-blue focus:border-accent-blue outline-none transition-colors resize-y min-h-[100px]"></textarea>
+                </div>
+
+                <button id="submitAnswerBtn" class="btn btn-primary w-full mt-4">Submit Answer</button>
+
+                <div id="postAnswerActions" class="hidden mt-5 flex flex-col sm:flex-row gap-3 justify-center">
+                    <button id="reviewWithCoachBtn" class="btn btn-secondary flex-1">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" viewBox="0 0 20 20" fill="currentColor"><path d="M2 5a2 2 0 012-2h7a2 2 0 012 2v4a2 2 0 01-2 2H9l-3 3v-3H4a2 2 0 01-2-2V5z"/><path d="M15 7v2a4 4 0 01-4 4H9.828l-1.766 1.767c.28.149.599.233.938.233h2l3 3v-3h1a2 2 0 002-2V9a2 2 0 00-2-2h-1z"/></svg>
+                        Review with Coach
+                    </button>
+                    <button id="nextQuestionBtn" class="btn btn-primary flex-1">
+                        Next Question
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 ml-2" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M10.293 3.293a1 1 0 011.414 0l6 6a1 1 0 010 1.414l-6 6a1 1 0 01-1.414-1.414L14.586 11H3a1 1 0 110-2h11.586l-4.293-4.293a1 1 0 010-1.414z" clip-rule="evenodd" /></svg>
+                    </button>
+                </div>
+            </div>
+
+            <div id="quizEndMessage" class="text-center py-10 hidden">
+                </div>
+        </div>
+    </div>
+
+    <div id="aiTutorPanel" class="fixed top-0 right-[-100%] md:right-[-450px] w-full md:w-[450px] h-full bg-bg-card bg-opacity-80 backdrop-blur-lg shadow-2xl transition-right duration-500 ease-out z-50 flex flex-col p-5 md:p-7 border-l border-border-color">
+        <button id="closeTutorBtn" aria-label="Close tutor panel" class="absolute top-4 right-4 text-text-secondary hover:text-text-primary text-2xl p-1 rounded-full hover:bg-bg-element-hover transition-colors">&times;</button>
+        <div class="ai-tutor-header flex items-center pb-4 mb-4 border-b border-border-color">
+            <div class="ai-tutor-icon-wrapper w-10 h-10 mr-3 bg-bg-element rounded-full flex items-center justify-center shrink-0">
+                <svg class="w-6 h-6 text-accent-blue" viewBox="0 0 24 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8zm-1.5-11.5c.83 0 1.5-.67 1.5-1.5S11.33 5.5 10.5 5.5 9 6.17 9 7s.67 1.5 1.5 1.5zm3 0c.83 0 1.5-.67 1.5-1.5S14.33 5.5 13.5 5.5 12 6.17 12 7s.67 1.5 1.5 1.5zm-3 4C8.67 12.5 7 13.84 7 15.5h10c0-1.66-1.67-3-4.5-3S8.67 12.5 7.5 12.5z"/></svg>
+            </div>
+            <h2 class="text-xl font-bold text-text-primary">AI Learning Coach</h2>
+        </div>
+        <div id="chatMessages" class="flex-grow overflow-y-auto mb-4 pr-1 space-y-3">
+            </div>
+        <div class="mt-auto pt-3 border-t border-border-color">
+            <div id="chatInputContainer" class="flex items-center gap-2">
+                <input type="text" id="chatInput" placeholder="Ask AI Coach..." aria-label="Chat input" class="flex-grow p-2.5 bg-bg-element border border-border-color rounded-lg focus:ring-2 focus:ring-accent-blue focus:border-accent-blue outline-none transition-colors text-sm">
+                <button id="sendChatBtn" class="btn !p-2.5 !rounded-lg bg-accent-blue hover:bg-accent-blue-hover" aria-label="Send message">
+                    <svg class="w-5 h-5 text-white" viewBox="0 0 24 24" fill="currentColor"><path d="M1.946 9.315c-.522-.174-.527-.455.014-.634L21.043 2.315c.54-.183.848.123.67.648L16.253 22.042c-.178.534-.48.532-.662.004L12 14l-8 3.614L1.946 9.315zM12 14l.001 6.001L15.613 22.042 21.725 2.958 1.956 8.685 8 12l4-2z"/></svg>
+                </button>
+            </div>
+            <button id="nextQuestionFromChatBtn" class="btn btn-primary w-full mt-3 hidden">Next Challenge</button>
+        </div>
+    </div>
+
+    <footer class="app-footer">
+        &copy; <span id="currentYear"></span> AceAnything. Quiz Mode.
+    </footer>
+
+    <script>
+        // Pass quiz_name to JavaScript if needed for API calls, though session should handle most context
+        const currentQuizName = "{{ quiz_name }}";
+        const currentQuizTitle = "{{ quiz_title }}";
+        const totalQuizQuestions = {{ total_question_count }};
+        
+        // Pre-load first question data REMOVED as it was causing linter errors with the tool.
+    </script>
+    <script src="{{ url_for('static', path='/js/quiz_page_logic.js') }}"></script>
+</body>
+</html>

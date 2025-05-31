@@ -1,0 +1,369 @@
+/* static/css/styles.css */
+:root {
+    --bg-main: #121212; /* Darker main background */
+    --bg-card: #1e1e1e; /* Slightly lighter card background */
+    --bg-element: #2c2c2e;
+    --bg-element-hover: #3a3a3c;
+    --text-primary: #e0e0e0; /* Off-white for primary text */
+    --text-secondary: #a0a0a0; /* Lighter secondary text */
+    --accent-blue: #0A84FF; /* Keeping Apple's blue, it's nice */
+    --accent-blue-hover: #0077EE;
+    --accent-green: #30D158;
+    --accent-red: #FF453A;
+    --border-color: #38383a; /* Slightly more visible border */
+    --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    --success-glow: rgba(48, 209, 88, 0.35);
+    --error-glow: rgba(255, 69, 58, 0.35);
+    --shadow-color-light: rgba(255, 255, 255, 0.05); /* For subtle highlights on dark theme */
+    --shadow-color-dark: rgba(0, 0, 0, 0.3);
+}
+
+html {
+    scroll-behavior: smooth;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+}
+
+body {
+    font-family: var(--font-sans);
+    background-color: var(--bg-main);
+    color: var(--text-primary);
+    margin: 0;
+    line-height: 1.6;
+}
+
+/* General Button Styling (can be overridden by Tailwind or specific classes) */
+.btn {
+    padding: 0.8rem 1.6rem;
+    border-radius: 10px;
+    font-weight: 600;
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    border: none;
+    cursor: pointer;
+    font-size: 0.95rem;
+    letter-spacing: 0.01em;
+    text-transform: none; /* Or uppercase if preferred */
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    text-decoration: none; /* For button-like links */
+}
+
+.btn-primary {
+    background-color: var(--accent-blue);
+    color: white;
+    box-shadow: 0 2px 4px var(--shadow-color-dark);
+}
+.btn-primary:hover {
+    background-color: var(--accent-blue-hover);
+    transform: translateY(-1px); /* Subtle lift */
+    box-shadow: 0 4px 8px var(--shadow-color-dark);
+}
+.btn-primary:active {
+    transform: translateY(0px);
+    box-shadow: 0 1px 2px var(--shadow-color-dark);
+}
+.btn-primary:disabled {
+    background-color: var(--bg-element);
+    color: var(--text-secondary);
+    cursor: not-allowed;
+    transform: none;
+    box-shadow: none;
+}
+
+.btn-secondary {
+    background-color: var(--bg-element);
+    color: var(--text-primary);
+    border: 1px solid var(--border-color);
+}
+.btn-secondary:hover {
+    background-color: var(--bg-element-hover);
+    border-color: var(--text-secondary);
+    transform: translateY(-1px);
+}
+.btn-secondary:active { transform: translateY(0px); }
+
+
+/* Quiz Card Styling (from user's index.html, adapted) */
+.quiz-card {
+    background-color: var(--bg-card);
+    border-radius: 22px; /* More pronounced rounding */
+    box-shadow: 0 16px 32px var(--shadow-color-dark), 0 0 0 0.5px var(--shadow-color-light);
+    transition: box-shadow 0.4s ease-out, transform 0.3s ease-out;
+    /* padding handled by Tailwind in quiz_interface.html or inline */
+}
+.quiz-card-glow-correct {
+    box-shadow: 0 16px 32px var(--shadow-color-dark), 0 0 0 0.5px var(--shadow-color-light), 0 0 22px 5px var(--success-glow);
+}
+.quiz-card-glow-incorrect {
+    box-shadow: 0 16px 32px var(--shadow-color-dark), 0 0 0 0.5px var(--shadow-color-light), 0 0 22px 5px var(--error-glow);
+}
+@keyframes card-shake {
+    0%, 100% { transform: translateX(0); }
+    25% { transform: translateX(-5px); } /* Slightly more shake */
+    75% { transform: translateX(5px); }
+}
+.quiz-card-shake-animation {
+    animation: card-shake 0.35s cubic-bezier(.36,.07,.19,.97) both;
+}
+
+/* MCQ Options Styling */
+.mcq-option-group {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem; /* Increased gap */
+}
+.mcq-option {
+    display: flex;
+    align-items: center;
+    position: relative;
+    cursor: pointer;
+    font-size: 1rem;
+    font-weight: 500;
+    background-color: var(--bg-element);
+    padding: 0.875rem 1.25rem; /* Slightly more padding */
+    border-radius: 12px; /* More rounding */
+    border: 1px solid var(--border-color);
+    transition: background-color 0.2s, border-color 0.2s, transform 0.15s;
+    color: var(--text-primary);
+}
+.mcq-option:hover {
+    background-color: var(--bg-element-hover);
+    border-color: var(--text-secondary); /* Lighter border on hover */
+    transform: scale(1.015); /* Slight scale on hover */
+}
+.mcq-option input[type="radio"] {
+    display: none; /* Hidden, custom radio used */
+}
+.mcq-option .radio-custom-outer {
+    width: 22px; height: 22px; /* Slightly larger */
+    border: 2px solid #5e5e61;
+    border-radius: 50%;
+    margin-right: 1rem; /* More space */
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s;
+    flex-shrink: 0;
+}
+.mcq-option .radio-custom-inner {
+    width: 10px; height: 10px;
+    background-color: transparent;
+    border-radius: 50%;
+    transform: scale(0);
+    transition: transform 0.2s ease-out;
+}
+.mcq-option input[type="radio"]:checked + .radio-custom-outer {
+    border-color: var(--accent-blue);
+}
+.mcq-option input[type="radio"]:checked + .radio-custom-outer .radio-custom-inner {
+    background-color: var(--accent-blue);
+    transform: scale(1);
+}
+.mcq-option-text {
+    flex-grow: 1;
+    line-height: 1.5;
+    color: var(--text-primary);
+}
+
+/* True/False Options Styling */
+.tf-options-container {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0.75rem; /* Increased gap */
+}
+.tf-btn {
+    padding: 1rem; /* More padding */
+    border-radius: 12px;
+    cursor: pointer;
+    text-align: center;
+    font-weight: 600;
+    font-size: 1rem;
+    background-color: var(--bg-element);
+    color: var(--text-primary);
+    border: 1px solid var(--border-color);
+    transition: background-color 0.2s, border-color 0.2s, color 0.2s, transform 0.15s;
+}
+.tf-btn:hover {
+    background-color: var(--bg-element-hover);
+    border-color: var(--text-secondary);
+    transform: scale(1.02);
+}
+.tf-btn.selected {
+    background-color: var(--accent-blue);
+    color: white;
+    border-color: var(--accent-blue);
+    transform: scale(1.02); /* Keep scale for consistency */
+}
+
+/* Short Answer Input Styling */
+#shortAnswerInput { /* Also styled with Tailwind in HTML */
+    background-color: var(--bg-element);
+    color: var(--text-primary);
+    border: 1px solid var(--border-color);
+    /* padding, border-radius, width, margin-bottom handled by Tailwind */
+    font-size: 1rem;
+    line-height: 1.6;
+    /* resize, min-height handled by Tailwind */
+    transition: border-color 0.2s, box-shadow 0.2s;
+}
+#shortAnswerInput::placeholder {
+    color: var(--text-secondary);
+    opacity: 0.7;
+}
+#shortAnswerInput:focus { /* Tailwind focus styles are good, this is fallback/enhancement */
+    border-color: var(--accent-blue);
+    box-shadow: 0 0 0 3px rgba(10, 132, 255, 0.3); /* Accent blue glow */
+    outline: none;
+}
+
+/* AI Tutor Panel Styling (Tailwind mostly handles this in HTML) */
+#aiTutorPanel.active { /* Ensure transition works */
+    right: 0 !important; /* Override initial position */
+}
+
+/* Chat Bubbles Styling */
+.chat-bubble-container {
+    display: flex;
+    align-items: flex-end; /* Bubbles align to bottom of their container */
+    margin-bottom: 0.85rem; /* Increased spacing */
+    max-width: 100%; /* Allow full width for messages */
+}
+.chat-bubble-container.user { margin-left: auto; flex-direction: row-reverse; }
+.chat-bubble-container.ai { margin-right: auto; }
+
+.chat-bubble {
+    padding: 0.85rem 1.25rem; /* More padding */
+    border-radius: 20px; /* More rounded */
+    word-wrap: break-word;
+    line-height: 1.55;
+    font-size: 0.925rem; /* Slightly smaller for chat */
+    opacity: 0;
+    transform: translateY(10px) scale(0.98); /* Start slightly lower and smaller */
+    animation: bubbleUp 0.4s cubic-bezier(0.25, 0.8, 0.25, 1) forwards; /* Smoother easing */
+    min-height: 1.5em;
+    color: var(--text-primary);
+    box-shadow: 0 2px 5px rgba(0,0,0,0.15); /* Subtle shadow for bubbles */
+}
+@keyframes bubbleUp {
+    to {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+    }
+}
+
+.chat-bubble.user { background-color: var(--accent-blue); color: white; }
+.chat-bubble.ai { background-color: var(--bg-element-hover); color: var(--text-primary); } /* Slightly different AI bubble bg */
+.chat-bubble.ai strong { color: var(--text-primary); font-weight: 600; }
+.chat-bubble.ai em { color: var(--text-secondary); font-style: italic; } /* Italic for emphasis */
+.chat-bubble.ai code {
+    background-color: rgba(0,0,0,0.3); /* Darker code bg */
+    color: var(--accent-blue);
+    padding: 0.2em 0.45em;
+    border-radius: 6px;
+    font-size: 0.88em;
+    font-family: "SF Mono", Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+}
+.feedback-status-icon {
+    font-size: 1.1em; margin-right: 0.5rem; line-height: 1; vertical-align: -0.15em;
+}
+
+/* TTS Speaker Button */
+.tts-speaker-button {
+    background: none; border: none; color: var(--text-secondary);
+    cursor: pointer; padding: 0.35rem;
+    margin-left: 0.6rem; margin-right: 0.1rem;
+    opacity: 0.6;
+    transition: opacity 0.2s, color 0.2s, transform 0.2s;
+    align-self: center;
+}
+.chat-bubble-container.user .tts-speaker-button { margin-left: 0.1rem; margin-right: 0.6rem; }
+.tts-speaker-button:hover { opacity: 1; color: var(--accent-blue); transform: scale(1.15); }
+.tts-speaker-button svg { width: 18px; height: 18px; display: block; }
+.tts-speaker-button.loading svg { animation: spinSpeaker 1s linear infinite; }
+@keyframes spinSpeaker { to { transform: rotate(360deg); } }
+
+
+/* Chat Input Styling (Tailwind mostly handles this) */
+#chatInput { /* Also styled with Tailwind */
+    background-color: var(--bg-element);
+    color: var(--text-primary);
+    border: 1px solid var(--border-color);
+    /* padding, border-radius, font-size handled by Tailwind */
+}
+#chatInput::placeholder { color: var(--text-secondary); opacity: 0.7; }
+#chatInput:focus { /* Tailwind focus styles are good */
+    border-color: var(--accent-blue);
+    box-shadow: 0 0 0 3px rgba(10, 132, 255, 0.3);
+    outline: none;
+}
+
+/* App Header Styling */
+.app-header { margin-bottom: 2.5rem; text-align: center; }
+.app-title {
+    font-size: clamp(1.85rem, 5vw, 2.65rem); font-weight: 800; /* Bolder */
+    color: var(--text-primary);
+    padding-bottom: 0.35rem;
+    line-height: 1.25;
+    letter-spacing: -0.02em; /* Tighter letter spacing */
+}
+.app-subtitle { font-size: 1rem; color: var(--text-secondary); font-weight: 400; }
+
+/* Spinner Styling */
+.spinner { /* Used for buttons */
+    width: 18px; height: 18px;
+    border: 2.5px solid var(--bg-element); /* Match button bg */
+    border-radius: 50%;
+    border-top-color: var(--accent-blue); /* Spinner color */
+    animation: spin 0.7s linear infinite;
+    display: inline-block; /* For button content alignment */
+    vertical-align: middle;
+}
+.spinner-large { /* Used for page loading */
+     width: 40px; height: 40px;
+    border: 4px solid var(--bg-element);
+    border-radius: 50%;
+    border-top-color: var(--accent-blue);
+    animation: spin 1s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* Responsive Adjustments (Tailwind handles most, these are overrides/additions) */
+@media (max-width: 600px) {
+    body { padding: 1rem; }
+    .quiz-viewport { margin-top: 1rem; }
+    .quiz-card { padding: clamp(1.25rem, 4vw, 2rem); border-radius: 18px; }
+    #aiTutorPanel { max-width: 100%; border-left: none; border-radius: 0; padding: 1.25rem; right: -100% !important; /* Ensure it's off-screen */ }
+    #aiTutorPanel.active { right: 0 !important; }
+    .btn { padding: 0.8rem 1.3rem; font-size: 0.9rem; }
+    #questionText { font-size: clamp(1.15rem, 3.8vw, 1.55rem); }
+    .mcq-option { font-size: 0.925rem; padding: 0.8rem 1.05rem; }
+    .tf-btn { font-size: 0.925rem; padding: 0.8rem; }
+    .app-title { font-size: clamp(1.6rem, 4.5vw, 2.1rem); }
+    .app-subtitle { font-size: 0.9rem; }
+    #postAnswerActions { flex-direction: column; } /* Stack buttons on small screens */
+    #postAnswerActions .btn { width: 100%; }
+}
+
+/* Scrollbar styling for a more modern look (WebKit browsers) */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+::-webkit-scrollbar-track {
+  background: var(--bg-main);
+}
+::-webkit-scrollbar-thumb {
+  background-color: var(--bg-element-hover);
+  border-radius: 10px;
+  border: 2px solid var(--bg-main); /* Creates padding around thumb */
+}
+::-webkit-scrollbar-thumb:hover {
+  background-color: var(--text-secondary);
+}
+
+/* For Firefox */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--bg-element-hover) var(--bg-main);
+}
